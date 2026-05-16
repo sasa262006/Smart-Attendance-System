@@ -58,7 +58,7 @@ Smart Attendance System using Arduino, Fingerprint Sensor, and ESP8266 for autom
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 The project has been split into separate modules (Modular Architecture) to optimize collaboration and avoid conflicts on GitHub:
 
