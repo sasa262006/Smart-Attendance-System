@@ -74,10 +74,8 @@ Attendance_System/
 ## NOVA Team
 * Mostafa Mohamed
 * Mahmood Samy
-* Moamen Mohamed
 * Mariam Mohamed
 * Menna Ramadan
-* Karim Habib
 * Ahmed Mohamed
 * Youssef Omar
 * Malak Mourad
