@@ -57,7 +57,19 @@ Smart Attendance System using Arduino, Fingerprint Sensor, and ESP8266 for autom
 - **GND (Negative Terminals)** ➡️ GND
 
 ---
+<h2 align="center">📸 Project Showcases</h2>
 
+<p align="center">
+  <img src="./media/1.jpeg" alt="Smart Attendance System Full View 1" width="45%" style="margin: 10px; border-radius: 8px;">
+  
+  <img src="./media/2.jpeg" alt="Smart Attendance System Full View 2" width="45%" style="margin: 10px; border-radius: 8px;">
+</p>
+
+<p align="center">
+  <i>The complete prototype of the Smart Attendance System showing the final hardware assembly and component integration.</i>
+</p>
+
+--------
 ##  Project Structure
 
 The project has been split into separate modules (Modular Architecture) to optimize collaboration and avoid conflicts on GitHub:
