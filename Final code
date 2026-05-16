@@ -1,0 +1,185 @@
+#include <Adafruit_Fingerprint.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <SD.h>
+#include <RTClib.h>
+#include <SoftwareSerial.h>
+
+// تعيين المنافذ
+SoftwareSerial mySerial(2, 3); // (RX, TX) لمستشعر البصمة
+SoftwareSerial espSerial(8, 9); // (RX, TX) لوحدة ESP8266
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+RTC_DS3231 rtc;
+
+const int buzzer = 7;
+const int greenLED = 6;
+const int chipSelect = 10;
+File attendanceFile;
+File usersFile;
+
+void setup() {
+    Serial.begin(115200);
+    mySerial.begin(57600);
+    espSerial.begin(115200);
+    
+    pinMode(buzzer, OUTPUT);
+    pinMode(greenLED, OUTPUT);
+    
+    lcd.begin(16, 2);  // تصحيح استدعاء الدالة
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Initializing...");
+    
+    if (!rtc.begin()) {
+        Serial.println("Couldn't find RTC");
+        while (1);
+    }
+    
+    if (!SD.begin(chipSelect)) {
+        Serial.println("SD Card failed or not present");
+        return;
+    }
+    
+    finger.begin(57600); // تصحيح استدعاء الدالة
+    if (finger.verifyPassword()) {
+        Serial.println("Fingerprint sensor connected");
+    } else {
+        Serial.println("Fingerprint sensor not found");
+        while (1);
+    }
+    lcd.clear();
+    lcd.print("Ready for scan");
+}
+
+void loop() {
+    Serial.println("Press 'r' to register a new fingerprint");
+    if (Serial.available()) {
+        char command = Serial.read();
+        if (command == 'r') {
+            registerFingerprint();
+        }
+    }
+    int id = getFingerprintID();
+    if (id > 0) {
+        String name = getUserName(id);
+        Serial.print("User ID: "); Serial.println(id);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Welcome: ");
+        lcd.setCursor(0, 1);
+        lcd.print(name);
+        digitalWrite(buzzer, HIGH);
+        digitalWrite(greenLED, HIGH);
+        delay(1000);
+        digitalWrite(buzzer, LOW);
+        digitalWrite(greenLED, LOW);
+        logAttendance(name);
+        sendReport();
+    }
+}
+
+int getFingerprintID() {
+    uint8_t p = finger.getImage();
+    if (p != FINGERPRINT_OK) return -1;
+    p = finger.image2Tz();
+    if (p != FINGERPRINT_OK) return -1;
+    p = finger.fingerFastSearch();
+    if (p != FINGERPRINT_OK) return -1;
+    return finger.fingerID;
+}
+
+void registerFingerprint() {
+    int id;
+    Serial.println("Enter new fingerprint ID: ");
+    while (!Serial.available());
+    id = Serial.parseInt();
+    
+    Serial.print("Registering ID "); Serial.println(id);
+    if (fingerEnroll(id)) {
+        Serial.println("Enter user name: ");
+        while (!Serial.available());
+        String name = Serial.readStringUntil('\n');
+        name.trim();
+        
+        usersFile = SD.open("users.txt", FILE_WRITE);
+        if (usersFile) {
+            usersFile.print(id);
+            usersFile.print(",");
+            usersFile.println(name);
+            usersFile.close();
+        }
+        Serial.println("Fingerprint registered successfully!");
+    } else {
+        Serial.println("Failed to register fingerprint");
+    }
+}
+
+bool fingerEnroll(int id) {
+    int p;
+    Serial.println("Place your finger...");
+    while ((p = finger.getImage()) != FINGERPRINT_OK);
+    p = finger.image2Tz(1);
+    if (p != FINGERPRINT_OK) return false;
+    Serial.println("Remove your finger");
+    delay(2000);
+    Serial.println("Place your finger again...");
+    while ((p = finger.getImage()) != FINGERPRINT_OK);
+    p = finger.image2Tz(2);
+    if (p != FINGERPRINT_OK) return false;
+    p = finger.createModel();
+    if (p != FINGERPRINT_OK) return false;
+    p = finger.storeModel(id);
+    if (p != FINGERPRINT_OK) return false;
+    return true;
+}
+
+String getUserName(int id) {
+    usersFile = SD.open("users.txt");
+    if (usersFile) {
+        while (usersFile.available()) {
+            String line = usersFile.readStringUntil('\n');
+            int storedID = line.substring(0, line.indexOf(',')).toInt();
+            if (storedID == id) {
+                String name = line.substring(line.indexOf(',') + 1);
+                usersFile.close();
+                return name;
+            }
+        }
+        usersFile.close();
+    }
+    return "Unknown";
+}
+
+void logAttendance(String name) {
+    attendanceFile = SD.open("attendance.csv", FILE_WRITE);
+    if (attendanceFile) {
+        DateTime now = rtc.now();
+        attendanceFile.print(name);
+        attendanceFile.print(",");
+        attendanceFile.print(now.year());
+        attendanceFile.print("/");
+        attendanceFile.print(now.month());
+        attendanceFile.print("/");
+        attendanceFile.print(now.day());
+        attendanceFile.print(",");
+        attendanceFile.print(now.hour());
+        attendanceFile.print(":");
+        attendanceFile.print(now.minute());
+        attendanceFile.println();
+        attendanceFile.close();
+    }
+}
+
+void sendReport() {
+    espSerial.println("AT");
+    delay(1000);
+    espSerial.println("AT+CWJAP=\"SSID\",\"PASSWORD\"");
+    delay(5000);
+    espSerial.println("AT+CIPSTART=\"TCP\",\"api.callmebot.com\",80");
+    delay(2000);
+    espSerial.println("AT+CIPSEND=100");
+    delay(2000);
+    espSerial.println("GET /whatsapp.php?phone=+20123456789&text=Attendance+Report+Sent&apikey=123456 HTTP/1.1\r\nHost: api.callmebot.com\r\nConnection: close\r\n\r\n");
+    delay(2000);
+}
