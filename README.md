@@ -58,7 +58,7 @@ Smart Attendance System using Arduino, Fingerprint Sensor, and ESP8266 for autom
 
 ---
 
-##  Project Structure
+## 📂 Project Structure
 
 The project has been split into separate modules (Modular Architecture) to optimize collaboration and avoid conflicts on GitHub:
 
@@ -68,7 +68,7 @@ Attendance_System/
 ├── Hardware_Config.h       # Hardware pin definitions, libraries, and objects initialization
 ├── Biometric_Storage.h     # Functions for fingerprint processing and SD Card read/write operations
 └── Network_Report.h        # Wi-Fi connection handling and WhatsApp AT command routines
-
+```
 ------
 
 ## NOVA Team
